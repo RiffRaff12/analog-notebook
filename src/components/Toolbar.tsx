@@ -34,6 +34,7 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
       className="absolute flex items-center gap-1 px-2 py-1 bg-white border border-stone-200 rounded-lg shadow-md text-xs"
       style={{ left, top, height: TOOLBAR_HEIGHT, zIndex: 50 }}
       onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.preventDefault()}
     >
       {(['S', 'M', 'L'] as const).map((label, i) => {
         const sizes = [12, 16, 20] as const
