@@ -150,3 +150,72 @@ describe('StorageModule — TextBox CRUD', () => {
     expect(list).toHaveLength(0)
   })
 })
+
+describe('StorageModule — ImageBox CRUD', () => {
+  it('creates and retrieves an image box', async () => {
+    const nb = await storage.createNotebook('NB')
+    const spread = await storage.saveSpread({ notebookId: nb.id, index: 0 })
+    const blob = new Blob(['fake-image'], { type: 'image/png' })
+    const ib = await storage.createImageBox({
+      spreadId: spread.id,
+      pageIndex: 0,
+      x: 0.1,
+      y: 0.2,
+      width: 0.8,
+      height: 0.4,
+      imageData: blob,
+    })
+    expect(ib.id).toBeDefined()
+    expect(ib.spreadId).toBe(spread.id)
+    expect(ib.pageIndex).toBe(0)
+    expect(ib.x).toBeCloseTo(0.1)
+    expect(ib.y).toBeCloseTo(0.2)
+    expect(ib.width).toBeCloseTo(0.8)
+    expect(ib.height).toBeCloseTo(0.4)
+    expect(ib.imageData).toBeInstanceOf(Blob)
+  })
+
+  it('lists image boxes for a spread', async () => {
+    const nb = await storage.createNotebook('NB')
+    const spread = await storage.saveSpread({ notebookId: nb.id, index: 0 })
+    const blob = new Blob(['img'], { type: 'image/png' })
+    await storage.createImageBox({ spreadId: spread.id, pageIndex: 0, x: 0.1, y: 0.1, width: 0.5, height: 0.3, imageData: blob })
+    await storage.createImageBox({ spreadId: spread.id, pageIndex: 1, x: 0.2, y: 0.2, width: 0.4, height: 0.2, imageData: blob })
+    const list = await storage.getImageBoxes(spread.id)
+    expect(list).toHaveLength(2)
+  })
+
+  it('does not mix image boxes across spreads', async () => {
+    const nb = await storage.createNotebook('NB')
+    const s1 = await storage.saveSpread({ notebookId: nb.id, index: 0 })
+    const s2 = await storage.saveSpread({ notebookId: nb.id, index: 1 })
+    const blob = new Blob(['img'], { type: 'image/png' })
+    await storage.createImageBox({ spreadId: s1.id, pageIndex: 0, x: 0.1, y: 0.1, width: 0.5, height: 0.3, imageData: blob })
+    const list = await storage.getImageBoxes(s2.id)
+    expect(list).toHaveLength(0)
+  })
+
+  it('deletes an image box', async () => {
+    const nb = await storage.createNotebook('NB')
+    const spread = await storage.saveSpread({ notebookId: nb.id, index: 0 })
+    const blob = new Blob(['img'], { type: 'image/png' })
+    const ib = await storage.createImageBox({ spreadId: spread.id, pageIndex: 0, x: 0.1, y: 0.1, width: 0.5, height: 0.3, imageData: blob })
+    await storage.deleteImageBox(ib.id)
+    const list = await storage.getImageBoxes(spread.id)
+    expect(list).toHaveLength(0)
+  })
+
+  it('updates image box position and size', async () => {
+    const nb = await storage.createNotebook('NB')
+    const spread = await storage.saveSpread({ notebookId: nb.id, index: 0 })
+    const blob = new Blob(['img'], { type: 'image/png' })
+    const ib = await storage.createImageBox({ spreadId: spread.id, pageIndex: 0, x: 0.1, y: 0.1, width: 0.5, height: 0.3, imageData: blob })
+    await storage.updateImageBox(ib.id, { x: 0.3, y: 0.4, width: 0.6, height: 0.2 })
+    const list = await storage.getImageBoxes(spread.id)
+    const updated = list[0]
+    expect(updated.x).toBeCloseTo(0.3)
+    expect(updated.y).toBeCloseTo(0.4)
+    expect(updated.width).toBeCloseTo(0.6)
+    expect(updated.height).toBeCloseTo(0.2)
+  })
+})

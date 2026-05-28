@@ -28,10 +28,24 @@ export interface TextBox {
   updatedAt: number
 }
 
+export interface ImageBox {
+  id: string
+  spreadId: string
+  pageIndex: 0 | 1
+  x: number
+  y: number
+  width: number
+  height: number
+  imageData: Blob
+  createdAt: number
+  updatedAt: number
+}
+
 type CreateTextBoxInput = Omit<TextBox, 'id' | 'createdAt' | 'updatedAt'>
 type SaveSpreadInput = Omit<Spread, 'id' | 'createdAt'>
+export type CreateImageBoxInput = Omit<ImageBox, 'id' | 'createdAt' | 'updatedAt'>
 
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export class StorageModule {
   private db: IDBPDatabase | null = null
@@ -54,6 +68,10 @@ export class StorageModule {
         if (!db.objectStoreNames.contains('textBoxes')) {
           const tbStore = db.createObjectStore('textBoxes', { keyPath: 'id' })
           tbStore.createIndex('by-spread', 'spreadId')
+        }
+        if (!db.objectStoreNames.contains('imageBoxes')) {
+          const ibStore = db.createObjectStore('imageBoxes', { keyPath: 'id' })
+          ibStore.createIndex('by-spread', 'spreadId')
         }
       },
     })
@@ -139,5 +157,34 @@ export class StorageModule {
 
   async getTextBoxes(spreadId: string): Promise<TextBox[]> {
     return this.store.getAllFromIndex('textBoxes', 'by-spread', spreadId)
+  }
+
+  async createImageBox(input: CreateImageBoxInput): Promise<ImageBox> {
+    const ib: ImageBox = {
+      id: crypto.randomUUID(),
+      ...input,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    await this.store.put('imageBoxes', ib)
+    return ib
+  }
+
+  async getImageBox(id: string): Promise<ImageBox | undefined> {
+    return this.store.get('imageBoxes', id)
+  }
+
+  async updateImageBox(id: string, patch: Partial<Omit<ImageBox, 'id' | 'spreadId' | 'createdAt'>>): Promise<void> {
+    const existing = await this.getImageBox(id)
+    if (!existing) return
+    await this.store.put('imageBoxes', { ...existing, ...patch, updatedAt: Date.now() })
+  }
+
+  async deleteImageBox(id: string): Promise<void> {
+    await this.store.delete('imageBoxes', id)
+  }
+
+  async getImageBoxes(spreadId: string): Promise<ImageBox[]> {
+    return this.store.getAllFromIndex('imageBoxes', 'by-spread', spreadId)
   }
 }
