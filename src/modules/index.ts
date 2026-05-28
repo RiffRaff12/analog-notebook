@@ -1,5 +1,6 @@
 export { StorageModule } from './StorageModule'
-export type { Notebook, Spread, TextBox } from './StorageModule'
+export type { Notebook, Spread, TextBox, ImageBox } from './StorageModule'
+export { ImageBoxManager } from './ImageBoxManager'
 export { NotebookManager } from './NotebookManager'
 export { SpreadManager } from './SpreadManager'
 export { TextBoxManager } from './TextBoxManager'

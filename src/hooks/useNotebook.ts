@@ -4,10 +4,11 @@ import {
   NotebookManager,
   SpreadManager,
   TextBoxManager,
+  ImageBoxManager,
   SelectionManager,
   KeyboardShortcutModule,
 } from '../modules'
-import type { Notebook, Spread, TextBox } from '../modules'
+import type { Notebook, Spread, TextBox, ImageBox } from '../modules'
 
 export interface NotebookState {
   ready: boolean
@@ -16,7 +17,9 @@ export interface NotebookState {
   currentSpread: Spread | null
   spreads: Spread[]
   textBoxes: TextBox[]
+  imageBoxes: ImageBox[]
   selectedId: string | null
+  selectedImageId: string | null
   editingId: string | null
   canGoNext: boolean
   canGoPrev: boolean
@@ -46,6 +49,12 @@ export interface NotebookActions {
   renameNotebook: (id: string, name: string) => Promise<void>
   deleteNotebook: (id: string) => Promise<void>
   switchNotebook: (id: string) => Promise<void>
+  pasteImageBox: (pageIndex: 0 | 1, x: number, y: number, blob: Blob, naturalWidth: number, naturalHeight: number) => Promise<void>
+  deleteImageBox: (id: string) => Promise<void>
+  moveImageBox: (id: string, x: number, y: number) => Promise<void>
+  resizeImageBox: (id: string, width: number, height: number) => Promise<void>
+  selectImageBox: (id: string) => void
+  deselectImageBox: () => void
 }
 
 export function useNotebook(): [NotebookState, NotebookActions] {
@@ -53,9 +62,11 @@ export function useNotebook(): [NotebookState, NotebookActions] {
   const nbManagerRef = useRef<NotebookManager | null>(null)
   const spreadManagerRef = useRef<SpreadManager | null>(null)
   const tbManagerRef = useRef<TextBoxManager | null>(null)
+  const ibManagerRef = useRef<ImageBoxManager | null>(null)
   const selectionRef = useRef<SelectionManager>(new SelectionManager())
   const kbRef = useRef<KeyboardShortcutModule>(new KeyboardShortcutModule())
   const navigatingRef = useRef(false)
+  const selectedImageIdRef = useRef<string | null>(null)
 
   const [state, setState] = useState<NotebookState>({
     ready: false,
@@ -64,7 +75,9 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     currentSpread: null,
     spreads: [],
     textBoxes: [],
+    imageBoxes: [],
     selectedId: null,
+    selectedImageId: null,
     editingId: null,
     canGoNext: false,
     canGoPrev: false,
@@ -79,6 +92,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     const sm = spreadManagerRef.current
     const nbm = nbManagerRef.current
     const tbm = tbManagerRef.current
+    const ibm = ibManagerRef.current
     const storage = storageRef.current
     const sel = selectionRef.current
     if (!nbm || !storage) return
@@ -90,6 +104,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
 
     const spread = await sm.getCurrentSpread()
     const textBoxes = spread ? await tbm.getTextBoxes(spread.id) : []
+    const imageBoxes = spread && ibm ? await ibm.getImageBoxes(spread.id) : []
     const notebooks = await storage.listNotebooks()
 
     setState({
@@ -99,7 +114,9 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       currentSpread: spread ?? null,
       spreads: sm.getSpreads(),
       textBoxes,
+      imageBoxes,
       selectedId: sel.getSelected(),
+      selectedImageId: selectedImageIdRef.current,
       editingId: sel.getSelected() && sel.isInEditMode(sel.getSelected()!) ? sel.getSelected() : null,
       canGoNext: sm.canGoNext(),
       canGoPrev: sm.canGoPrev(),
@@ -117,6 +134,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     await sm.init()
     spreadManagerRef.current = sm
     tbManagerRef.current = new TextBoxManager(storage)
+    ibManagerRef.current = new ImageBoxManager(storage)
   }, [])
 
   useEffect(() => {
@@ -144,6 +162,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       const sel = selectionRef.current
       kb.register('escape', () => {
         sel.deselect()
+        selectedImageIdRef.current = null
         refresh()
       })
       kb.register('mod+d', async () => {
@@ -154,10 +173,15 @@ export function useNotebook(): [NotebookState, NotebookActions] {
         }
       })
       const deleteSelected = async () => {
-        const id = sel.getSelected()
-        if (id && !sel.isEditing()) {
+        const textId = sel.getSelected()
+        const imageId = selectedImageIdRef.current
+        if (imageId) {
+          selectedImageIdRef.current = null
+          await ibManagerRef.current?.deleteImageBox(imageId)
+          await refresh()
+        } else if (textId && !sel.isEditing()) {
           sel.deselect()
-          await tbManagerRef.current?.deleteTextBox(id)
+          await tbManagerRef.current?.deleteTextBox(textId)
           await refresh()
         }
       }
@@ -169,6 +193,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
           try {
             await spreadManagerRef.current?.goToPrev()
             sel.deselect()
+            selectedImageIdRef.current = null
             await refresh()
           } finally {
             navigatingRef.current = false
@@ -184,6 +209,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
             if (!sm.canGoNext()) await sm.addSpread()
             await sm.goToNext()
             sel.deselect()
+            selectedImageIdRef.current = null
             await refresh()
           } finally {
             navigatingRef.current = false
@@ -215,6 +241,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
         if (!sm.canGoNext()) await sm.addSpread()
         await sm.goToNext()
         selectionRef.current.deselect()
+        selectedImageIdRef.current = null
         await refresh()
       } finally {
         navigatingRef.current = false
@@ -226,6 +253,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       try {
         await spreadManagerRef.current?.goToPrev()
         selectionRef.current.deselect()
+        selectedImageIdRef.current = null
         await refresh()
       } finally {
         navigatingRef.current = false
@@ -237,6 +265,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       try {
         await spreadManagerRef.current?.goToSpread(index)
         selectionRef.current.deselect()
+        selectedImageIdRef.current = null
         await refresh()
       } finally {
         navigatingRef.current = false
@@ -246,6 +275,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       await spreadManagerRef.current?.addSpread()
       await spreadManagerRef.current?.goToNext()
       selectionRef.current.deselect()
+      selectedImageIdRef.current = null
       await refresh()
     },
     createTextBox: async (pageIndex, x, y) => {
@@ -255,6 +285,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       const spread = await sm.getCurrentSpread()
       if (!spread) return null
       const tb = await tbm.createTextBox(spread.id, pageIndex, x, y)
+      selectedImageIdRef.current = null
       await refresh()
       return tb
     },
@@ -281,6 +312,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     },
     selectBox: (id) => {
       selectionRef.current.select(id)
+      selectedImageIdRef.current = null
       refresh()
     },
     deselectBox: () => {
@@ -290,6 +322,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     enterEditMode: (id) => {
       selectionRef.current.select(id)
       selectionRef.current.enterEditMode(id)
+      selectedImageIdRef.current = null
       refresh()
     },
     exitEditMode: () => {
@@ -302,6 +335,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       const active = nbm.getActiveNotebook()!
       await initSpreadManager(active.id)
       selectionRef.current.deselect()
+      selectedImageIdRef.current = null
       await refresh()
     },
     renameNotebook: async (id, name) => {
@@ -318,13 +352,46 @@ export function useNotebook(): [NotebookState, NotebookActions] {
         spreadManagerRef.current = null
       }
       selectionRef.current.deselect()
+      selectedImageIdRef.current = null
       await refresh()
     },
     switchNotebook: async (id) => {
       await nbManagerRef.current?.setActiveNotebook(id)
       await initSpreadManager(id)
       selectionRef.current.deselect()
+      selectedImageIdRef.current = null
       await refresh()
+    },
+    pasteImageBox: async (pageIndex, x, y, blob, naturalWidth, naturalHeight) => {
+      const sm = spreadManagerRef.current
+      const ibm = ibManagerRef.current
+      if (!sm || !ibm) return
+      const spread = await sm.getCurrentSpread()
+      if (!spread) return
+      await ibm.createImageBox(spread.id, pageIndex, x, y, blob, naturalWidth, naturalHeight)
+      await refresh()
+    },
+    deleteImageBox: async (id) => {
+      selectedImageIdRef.current = null
+      await ibManagerRef.current?.deleteImageBox(id)
+      await refresh()
+    },
+    moveImageBox: async (id, x, y) => {
+      await ibManagerRef.current?.moveImageBox(id, x, y)
+      await refresh()
+    },
+    resizeImageBox: async (id, width, height) => {
+      await ibManagerRef.current?.resizeImageBox(id, width, height)
+      await refresh()
+    },
+    selectImageBox: (id) => {
+      selectedImageIdRef.current = id
+      selectionRef.current.deselect()
+      refresh()
+    },
+    deselectImageBox: () => {
+      selectedImageIdRef.current = null
+      refresh()
     },
   }
 

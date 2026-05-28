@@ -4,6 +4,7 @@ import { getScaleProps } from '../modules'
 import type { NotebookActions, NotebookState } from '../hooks/useNotebook'
 import { TextBoxManager } from '../modules/TextBoxManager'
 import { TextBoxComponent } from './TextBoxComponent'
+import { ImageBoxComponent } from './ImageBoxComponent'
 import { Toolbar } from './Toolbar'
 
 interface Props {
@@ -12,17 +13,33 @@ interface Props {
   tbManager: TextBoxManager
 }
 
+interface ContextMenuState {
+  x: number
+  y: number
+  pageIndex: 0 | 1
+  pageX: number
+  pageY: number
+  hasImage: boolean
+}
+
 export function SpreadView({ state, actions, tbManager }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
   const SCROLLER_H = 40
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
   const [boxRects, setBoxRects] = useState<Map<string, DOMRect>>(new Map())
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
 
   useEffect(() => {
     const onResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    const dismiss = () => setContextMenu(null)
+    window.addEventListener('pointerdown', dismiss)
+    return () => window.removeEventListener('pointerdown', dismiss)
   }, [])
 
   const scaleProps = getScaleProps(viewportSize.w, viewportSize.h)
@@ -33,7 +50,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   const handleSpreadPointerDown = useCallback(
     async (e: React.PointerEvent, pageIndex: 0 | 1) => {
       const target = e.target as Element
-      if (target.closest('[data-textbox]')) return
+      if (target.closest('[data-textbox]') || target.closest('[data-imagebox]')) return
 
       const pageEl = (e.currentTarget as HTMLElement)
       const rect = pageEl.getBoundingClientRect()
@@ -44,14 +61,70 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         actions.deselectBox()
         return
       }
+      if (state.selectedImageId) {
+        actions.deselectImageBox()
+        return
+      }
 
       const tb = await actions.createTextBox(pageIndex, x, y)
       if (tb) {
         actions.enterEditMode(tb.id)
       }
     },
-    [state.selectedId, actions],
+    [state.selectedId, state.selectedImageId, actions],
   )
+
+  const handleContextMenu = useCallback(
+    async (e: React.MouseEvent, pageIndex: 0 | 1) => {
+      e.preventDefault()
+      const pageEl = e.currentTarget as HTMLElement
+      const rect = pageEl.getBoundingClientRect()
+      const pageX = (e.clientX - rect.left) / rect.width
+      const pageY = (e.clientY - rect.top) / rect.height
+
+      let hasImage = false
+      try {
+        const items = await navigator.clipboard.read()
+        hasImage = items.some(item => item.types.some(t => t.startsWith('image/')))
+      } catch {
+        // Clipboard API not permitted or no items
+      }
+
+      setContextMenu({ x: e.clientX, y: e.clientY, pageIndex, pageX, pageY, hasImage })
+    },
+    [],
+  )
+
+  const handlePasteImage = useCallback(async () => {
+    if (!contextMenu) return
+    setContextMenu(null)
+    try {
+      const items = await navigator.clipboard.read()
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith('image/'))
+        if (!imageType) continue
+        const blob = await item.getType(imageType)
+        const img = new Image()
+        const url = URL.createObjectURL(blob)
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve()
+          img.src = url
+        })
+        await actions.pasteImageBox(
+          contextMenu.pageIndex,
+          contextMenu.pageX,
+          contextMenu.pageY,
+          blob,
+          img.naturalWidth,
+          img.naturalHeight,
+        )
+        URL.revokeObjectURL(url)
+        break
+      }
+    } catch {
+      // Clipboard read failed
+    }
+  }, [contextMenu, actions])
 
   const handleRectChange = useCallback((id: string, rect: DOMRect) => {
     setBoxRects(prev => {
@@ -66,6 +139,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
 
   const renderPage = (pageIndex: 0 | 1) => {
     const pageBoxes = state.textBoxes.filter(b => b.pageIndex === pageIndex)
+    const pageImages = state.imageBoxes.filter(b => b.pageIndex === pageIndex)
     const pageNum = state.currentSpread
       ? state.currentSpread.index * 2 + 1 + pageIndex
       : pageIndex + 1
@@ -85,6 +159,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
           borderLeft: pageIndex === 1 ? '1px solid #e0d8cc' : undefined,
         }}
         onPointerDown={(e) => handleSpreadPointerDown(e, pageIndex)}
+        onContextMenu={(e) => handleContextMenu(e, pageIndex)}
       >
         {/* Paper texture overlay */}
         <div
@@ -94,6 +169,18 @@ export function SpreadView({ state, actions, tbManager }: Props) {
             opacity: 0.6,
           }}
         />
+        {/* Image boxes */}
+        {pageImages.map(box => (
+          <div key={box.id} data-imagebox="true">
+            <ImageBoxComponent
+              box={box}
+              pageWidth={pageWidth}
+              pageHeight={pageHeight}
+              isSelected={state.selectedImageId === box.id}
+              actions={actions}
+            />
+          </div>
+        ))}
         {/* Text boxes */}
         {pageBoxes.map((box: TextBox) => (
           <div key={box.id} data-textbox="true">
@@ -189,6 +276,22 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         />
       )}
 
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-white border border-stone-200 rounded shadow-lg py-1"
+          style={{ left: contextMenu.x, top: contextMenu.y, minWidth: 140 }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!contextMenu.hasImage}
+            onClick={handlePasteImage}
+          >
+            Paste Image
+          </button>
+        </div>
+      )}
     </div>
   )
 }
