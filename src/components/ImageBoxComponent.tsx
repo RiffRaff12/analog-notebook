@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ImageBox } from '../modules'
+import { DragModule } from '../modules'
 import type { NotebookActions } from '../hooks/useNotebook'
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   pageHeight: number
   isSelected: boolean
   actions: NotebookActions
+  spreadRect: DOMRect | null
 }
 
 type HandleDir = 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
@@ -17,7 +19,7 @@ const HANDLE_CURSORS: Record<HandleDir, string> = {
   nw: 'nw-resize', ne: 'ne-resize', sw: 'sw-resize', se: 'se-resize',
 }
 
-export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, actions }: Props) {
+export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, actions, spreadRect }: Props) {
   const imgRef = useRef<HTMLImageElement>(null)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
 
@@ -37,38 +39,41 @@ export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, acti
       e.stopPropagation()
       actions.selectImageBox(box.id)
 
-      const startX = e.clientX
-      const startY = e.clientY
-      const origX = box.x
-      const origY = box.y
+      if (!spreadRect) return
 
-      const handleMove = (me: PointerEvent) => {
-        const dx = (me.clientX - startX) / pageWidth
-        const dy = (me.clientY - startY) / pageHeight
-        const newX = Math.max(0, Math.min(1 - box.width, origX + dx))
-        const newY = Math.max(0, Math.min(1 - box.height, origY + dy))
-        if (imgRef.current) {
-          imgRef.current.parentElement!.style.left = `${newX * pageWidth}px`
-          imgRef.current.parentElement!.style.top = `${newY * pageHeight}px`
+      const spreadWidth = pageWidth * 2
+      const spreadOriginX = box.pageIndex === 0 ? box.x / 2 : 0.5 + box.x / 2
+
+      const drag = new DragModule({ left: spreadRect.left, top: spreadRect.top, width: spreadWidth, height: pageHeight })
+      drag.startDrag(box.id, spreadOriginX, box.y, { clientX: e.clientX, clientY: e.clientY }, (pos) => {
+        const el = imgRef.current?.parentElement
+        if (el) {
+          el.style.left = `${(pos.x - box.pageIndex * 0.5) * spreadWidth}px`
+          el.style.top = `${pos.y * pageHeight}px`
         }
-      }
+      })
 
-      const handleUp = async (ue: PointerEvent) => {
+      const handleMove = (me: PointerEvent) => drag.onDragMove(me)
+
+      const handleUp = async () => {
         window.removeEventListener('pointermove', handleMove)
         window.removeEventListener('pointerup', handleUp)
-        const dx = (ue.clientX - startX) / pageWidth
-        const dy = (ue.clientY - startY) / pageHeight
-        if (Math.abs(dx) > 0.002 || Math.abs(dy) > 0.002) {
-          const newX = Math.max(0, Math.min(1 - box.width, origX + dx))
-          const newY = Math.max(0, Math.min(1 - box.height, origY + dy))
-          await actions.moveImageBox(box.id, newX, newY)
+
+        if (drag.isDragging()) {
+          const finalPos = drag.getCurrentPosition()
+          drag.endDrag()
+          if (finalPos) {
+            const newPageIndex: 0 | 1 = finalPos.x < 0.5 ? 0 : 1
+            const newX = newPageIndex === 0 ? finalPos.x * 2 : (finalPos.x - 0.5) * 2
+            await actions.moveImageBox(box.id, newX, finalPos.y, newPageIndex)
+          }
         }
       }
 
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [box, pageWidth, pageHeight, actions],
+    [box, pageWidth, pageHeight, actions, spreadRect],
   )
 
   const handleResizePointerDown = useCallback(

@@ -55,6 +55,20 @@ export class SpreadManager {
     return spread
   }
 
+  async deleteSpread(id: string): Promise<void> {
+    const idx = this.spreads.findIndex(s => s.id === id)
+    if (idx === -1 || this.spreads.length <= 1) return
+    await this.storage.deleteSpread(id)
+    this.spreads.splice(idx, 1)
+    for (let i = idx; i < this.spreads.length; i++) {
+      this.spreads[i].index = i
+    }
+    if (this.currentIndex >= this.spreads.length) {
+      this.currentIndex = this.spreads.length - 1
+    }
+    await this.storage.updateNotebook(this.notebookId, { lastSpreadIndex: this.currentIndex })
+  }
+
   getPageCount(): number {
     return this.spreads.length
   }

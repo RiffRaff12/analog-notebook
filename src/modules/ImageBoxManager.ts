@@ -51,8 +51,10 @@ export class ImageBoxManager {
     })
   }
 
-  async moveImageBox(id: string, x: number, y: number): Promise<void> {
-    await this.storage.updateImageBox(id, { x: clamp(x), y: clamp(y) })
+  async moveImageBox(id: string, x: number, y: number, pageIndex?: 0 | 1): Promise<void> {
+    const patch: { x: number; y: number; pageIndex?: 0 | 1 } = { x: clamp(x), y: clamp(y) }
+    if (pageIndex !== undefined) patch.pageIndex = pageIndex
+    await this.storage.updateImageBox(id, patch)
   }
 
   async resizeImageBox(id: string, width: number, height: number): Promise<void> {

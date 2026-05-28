@@ -15,6 +15,21 @@ export function SpreadScroller({ state, actions }: Props) {
   const [containerWidth, setContainerWidth] = useState(window.innerWidth)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [hoverAnchor, setHoverAnchor] = useState<{ x: number; bottom: number } | null>(null)
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const scheduleHide = () => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setHoveredIndex(null)
+      setHoverAnchor(null)
+    }, 120)
+  }
+
+  const cancelHide = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+  }
 
   useEffect(() => {
     const el = containerRef.current
@@ -27,7 +42,7 @@ export function SpreadScroller({ state, actions }: Props) {
 
   const { spreads, currentSpread } = state
   const currentIndex = currentSpread?.index ?? 0
-  const visibleSpreads = spreads.filter(s => s.index <= currentIndex)
+  const visibleSpreads = spreads
   const translateX = containerWidth / 2 - (currentIndex * ITEM_W + ITEM_W / 2)
 
   return (
@@ -63,14 +78,12 @@ export function SpreadScroller({ state, actions }: Props) {
               key={spread.id}
               onClick={() => actions.goToSpread(i)}
               onMouseEnter={(e) => {
+                cancelHide()
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                 setHoveredIndex(i)
                 setHoverAnchor({ x: rect.left + rect.width / 2, bottom: rect.top })
               }}
-              onMouseLeave={() => {
-                setHoveredIndex(null)
-                setHoverAnchor(null)
-              }}
+              onMouseLeave={scheduleHide}
               style={{
                 width: ITEM_W,
                 flexShrink: 0,
@@ -97,8 +110,18 @@ export function SpreadScroller({ state, actions }: Props) {
         <SpreadPreview
           spread={visibleSpreads[hoveredIndex]}
           tbManager={state.tbManager}
+          ibManager={state.ibManager}
           anchorX={hoverAnchor.x}
           anchorBottom={hoverAnchor.bottom}
+          canDelete={visibleSpreads.length > 1}
+          onDelete={() => {
+            const id = visibleSpreads[hoveredIndex].id
+            setHoveredIndex(null)
+            setHoverAnchor(null)
+            actions.deleteSpread(id)
+          }}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
         />
       )}
     </div>

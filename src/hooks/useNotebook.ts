@@ -26,6 +26,7 @@ export interface NotebookState {
   pageCount: number
   isEmpty: boolean
   tbManager: TextBoxManager | null
+  ibManager: ImageBoxManager | null
   navigationDirection: 'forward' | 'backward' | null
   navigationCount: number
 }
@@ -35,6 +36,7 @@ export interface NotebookActions {
   goToPrev: () => Promise<void>
   goToSpread: (index: number) => Promise<void>
   addSpread: () => Promise<void>
+  deleteSpread: (id: string) => Promise<void>
   createTextBox: (pageIndex: 0 | 1, x: number, y: number) => Promise<TextBox | null>
   updateContent: (id: string, content: string) => Promise<void>
   updateFontSize: (id: string, fontSize: 12 | 16 | 20) => Promise<void>
@@ -51,7 +53,7 @@ export interface NotebookActions {
   switchNotebook: (id: string) => Promise<void>
   pasteImageBox: (pageIndex: 0 | 1, x: number, y: number, blob: Blob, naturalWidth: number, naturalHeight: number) => Promise<void>
   deleteImageBox: (id: string) => Promise<void>
-  moveImageBox: (id: string, x: number, y: number) => Promise<void>
+  moveImageBox: (id: string, x: number, y: number, pageIndex?: 0 | 1) => Promise<void>
   resizeImageBox: (id: string, width: number, height: number) => Promise<void>
   selectImageBox: (id: string) => void
   deselectImageBox: () => void
@@ -66,6 +68,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
   const selectionRef = useRef<SelectionManager>(new SelectionManager())
   const kbRef = useRef<KeyboardShortcutModule>(new KeyboardShortcutModule())
   const navigatingRef = useRef(false)
+  const lastSpreadCreatedRef = useRef(0)
   const selectedImageIdRef = useRef<string | null>(null)
 
   const [state, setState] = useState<NotebookState>({
@@ -84,6 +87,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     pageCount: 0,
     isEmpty: false,
     tbManager: null,
+    ibManager: null,
     navigationDirection: null,
     navigationCount: 0,
   })
@@ -98,7 +102,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     if (!nbm || !storage) return
     if (!sm || !tbm) {
       const notebooks = await storage.listNotebooks()
-      setState(prev => ({ ...prev, ready: true, notebooks, activeNotebook: nbm.getActiveNotebook(), isEmpty: nbm.isEmpty(), tbManager: null }))
+      setState(prev => ({ ...prev, ready: true, notebooks, activeNotebook: nbm.getActiveNotebook(), isEmpty: nbm.isEmpty(), tbManager: null, ibManager: null }))
       return
     }
 
@@ -123,6 +127,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       pageCount: sm.getPageCount(),
       isEmpty: nbm.isEmpty(),
       tbManager: tbManagerRef.current,
+      ibManager: ibManagerRef.current,
       navigationDirection: sm.navigationDirection,
       navigationCount: sm.navigationCount,
     })
@@ -206,7 +211,11 @@ export function useNotebook(): [NotebookState, NotebookActions] {
           try {
             const sm = spreadManagerRef.current
             if (!sm) return
-            if (!sm.canGoNext()) await sm.addSpread()
+            if (!sm.canGoNext()) {
+              if (Date.now() - lastSpreadCreatedRef.current < 500) return
+              await sm.addSpread()
+              lastSpreadCreatedRef.current = Date.now()
+            }
             await sm.goToNext()
             sel.deselect()
             selectedImageIdRef.current = null
@@ -238,7 +247,11 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       try {
         const sm = spreadManagerRef.current
         if (!sm) return
-        if (!sm.canGoNext()) await sm.addSpread()
+        if (!sm.canGoNext()) {
+          if (Date.now() - lastSpreadCreatedRef.current < 500) return
+          await sm.addSpread()
+          lastSpreadCreatedRef.current = Date.now()
+        }
         await sm.goToNext()
         selectionRef.current.deselect()
         selectedImageIdRef.current = null
@@ -274,6 +287,12 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     addSpread: async () => {
       await spreadManagerRef.current?.addSpread()
       await spreadManagerRef.current?.goToNext()
+      selectionRef.current.deselect()
+      selectedImageIdRef.current = null
+      await refresh()
+    },
+    deleteSpread: async (id) => {
+      await spreadManagerRef.current?.deleteSpread(id)
       selectionRef.current.deselect()
       selectedImageIdRef.current = null
       await refresh()
@@ -376,8 +395,8 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       await ibManagerRef.current?.deleteImageBox(id)
       await refresh()
     },
-    moveImageBox: async (id, x, y) => {
-      await ibManagerRef.current?.moveImageBox(id, x, y)
+    moveImageBox: async (id, x, y, pageIndex) => {
+      await ibManagerRef.current?.moveImageBox(id, x, y, pageIndex)
       await refresh()
     },
     resizeImageBox: async (id, width, height) => {

@@ -178,6 +178,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
               pageHeight={pageHeight}
               isSelected={state.selectedImageId === box.id}
               actions={actions}
+              spreadRect={spreadRect}
             />
           </div>
         ))}

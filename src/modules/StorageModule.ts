@@ -130,6 +130,10 @@ export class StorageModule {
     return this.store.getAllFromIndex('spreads', 'by-notebook', notebookId)
   }
 
+  async deleteSpread(id: string): Promise<void> {
+    await this.store.delete('spreads', id)
+  }
+
   async createTextBox(input: CreateTextBoxInput): Promise<TextBox> {
     const tb: TextBox = {
       id: crypto.randomUUID(),
