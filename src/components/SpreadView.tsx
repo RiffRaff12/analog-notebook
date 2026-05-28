@@ -22,6 +22,8 @@ interface ContextMenuState {
   hasImage: boolean
 }
 
+const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
 export function SpreadView({ state, actions, tbManager }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
@@ -29,9 +31,15 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
   const [boxRects, setBoxRects] = useState<Map<string, DOMRect>>(new Map())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const editingIdRef = useRef(state.editingId)
+
+  useEffect(() => { editingIdRef.current = state.editingId }, [state.editingId])
 
   useEffect(() => {
-    const onResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
+    const onResize = () => {
+      if (editingIdRef.current) return
+      setViewportSize({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
+    }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
@@ -77,6 +85,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   const handleContextMenu = useCallback(
     async (e: React.MouseEvent, pageIndex: 0 | 1) => {
       e.preventDefault()
+      if (isTouch) return
       const pageEl = e.currentTarget as HTMLElement
       const rect = pageEl.getBoundingClientRect()
       const pageX = (e.clientX - rect.left) / rect.width
@@ -243,7 +252,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         {state.canGoPrev && (
           <div className="absolute left-0 top-0 h-full flex items-center group" style={{ width: 48 }}>
             <button
-              className="opacity-20 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800"
+              className={`${isTouch ? 'opacity-60' : 'opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
               style={{ padding: 8, fontSize: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '0 4px 4px 0', backdropFilter: 'blur(2px)', lineHeight: 1 }}
               onClick={(e) => { e.stopPropagation(); actions.goToPrev() }}
               aria-label="Previous spread"
@@ -256,7 +265,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         {/* Right chevron — always visible, creates new spread at end */}
         <div className="absolute right-0 top-0 h-full flex items-center justify-end group" style={{ width: 48 }}>
           <button
-            className="opacity-20 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800"
+            className={`${isTouch ? 'opacity-60' : 'opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
             style={{ padding: 8, fontSize: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '4px 0 0 4px', backdropFilter: 'blur(2px)', lineHeight: 1 }}
             onClick={(e) => { e.stopPropagation(); actions.goToNext() }}
             aria-label="Next spread"

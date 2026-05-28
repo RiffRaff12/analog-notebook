@@ -12,6 +12,8 @@ interface Props {
   anchorBottom: number
   onDelete?: () => void
   canDelete?: boolean
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 const PREVIEW_W = 280
@@ -22,7 +24,7 @@ const PREVIEW_H = PREVIEW_W * (BASE_SPREAD_H / BASE_SPREAD_W)
 const PREVIEW_PAGE_H = PREVIEW_H
 const MM_SCALE = PREVIEW_W / BASE_SPREAD_W
 
-export function SpreadPreview({ spread, tbManager, ibManager, anchorX, anchorBottom, onDelete, canDelete }: Props) {
+export function SpreadPreview({ spread, tbManager, ibManager, anchorX, anchorBottom, onDelete, canDelete, onMouseEnter, onMouseLeave }: Props) {
   const [textBoxes, setTextBoxes] = useState<TextBox[]>([])
   const [imageBoxes, setImageBoxes] = useState<ImageBox[]>([])
   const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map())
@@ -145,9 +147,11 @@ export function SpreadPreview({ spread, tbManager, ibManager, anchorX, anchorBot
         boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
         borderRadius: 4,
         overflow: 'hidden',
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
         zIndex: 9999,
       }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {renderPage(0)}
       {renderPage(1)}
@@ -168,7 +172,6 @@ export function SpreadPreview({ spread, tbManager, ibManager, anchorX, anchorBot
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'all',
             padding: 0,
             lineHeight: 1,
           }}
