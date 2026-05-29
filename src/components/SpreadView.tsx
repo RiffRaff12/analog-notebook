@@ -29,6 +29,8 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
   const creatingRef = useRef(false)
+  const hiddenInputRef = useRef<HTMLTextAreaElement>(null)
+  const lastTouchAtRef = useRef(0)
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
   const [boxRects, setBoxRects] = useState<Map<string, DOMRect>>(new Map())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -62,8 +64,13 @@ export function SpreadView({ state, actions, tbManager }: Props) {
 
   const handleSpreadPointerDown = useCallback(
     (e: React.PointerEvent, pageIndex: 0 | 1) => {
-      // iOS fires synthetic 'mouse' pointerdown ~300ms after touch — ignore it
-      if (isTouch && e.pointerType === 'mouse') return
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        lastTouchAtRef.current = Date.now()
+      }
+      // Filter synthetic mouse pointerdown that iOS/Android fire ~300ms after touch.
+      // Check both the static isTouch flag and a recent-touch timestamp so iPads
+      // and hybrid devices (where isTouch may be false) are also covered.
+      if (e.pointerType === 'mouse' && (isTouch || Date.now() - lastTouchAtRef.current < 600)) return
 
       const target = e.target as Element
       if (target.closest('[data-textbox]') || target.closest('[data-imagebox]')) return
@@ -90,13 +97,13 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       // If currently editing, keep the keyboard open by preventing the browser
       // from blurring the textarea, then create a new box right where tapped.
       if (state.editingId) {
-        console.log('[spread tap] in edit mode, creating box on page', pageIndex)
         e.preventDefault()
         createHere()
         return
       }
 
-      if (!isTouch) {
+      const isTouchPointer = e.pointerType === 'touch' || e.pointerType === 'pen'
+      if (!isTouchPointer) {
         createHere()
         return
       }
@@ -141,7 +148,15 @@ export function SpreadView({ state, actions, tbManager }: Props) {
 
       const handleUp = () => {
         cleanup()
-        if (gestureType === 'pending') createHere()
+        if (gestureType === 'pending') {
+          // Focus the hidden relay input synchronously here — we're still inside
+          // the pointerup (touchend) handler, which IS a user-gesture context on iOS.
+          // This opens the keyboard before the real textarea exists. When the textarea
+          // mounts and calls focus(), iOS treats it as a focus-transfer and keeps the
+          // keyboard open, avoiding the "immediate blur → empty box deleted" bug.
+          hiddenInputRef.current?.focus()
+          createHere()
+        }
       }
 
       const handleCancel = () => cleanup()
@@ -382,6 +397,28 @@ export function SpreadView({ state, actions, tbManager }: Props) {
           </button>
         </div>
       )}
+
+      {/* iOS keyboard relay — focused synchronously in the pointerup handler so iOS
+          opens the keyboard within the gesture context. The real textarea then takes
+          over focus, and iOS keeps the keyboard open as a normal focus transfer. */}
+      <textarea
+        ref={hiddenInputRef}
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: 1,
+          height: 1,
+          opacity: 0,
+          fontSize: 16,
+          border: 'none',
+          padding: 0,
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      />
     </div>
   )
 }
