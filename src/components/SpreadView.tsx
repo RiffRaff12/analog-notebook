@@ -37,12 +37,16 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   useEffect(() => { editingIdRef.current = state.editingId }, [state.editingId])
 
   useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
     const onResize = () => {
       if (editingIdRef.current) return
-      setViewportSize({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
+      setViewportSize({ w: el.offsetWidth, h: el.offsetHeight })
     }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    onResize()
+    const ro = new ResizeObserver(onResize)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
   useEffect(() => {
@@ -286,7 +290,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full"
+      className="relative flex-1 min-h-0"
       style={{ background: '#F5F0E8' }}
     >
       {/* Spread container with slide animation */}

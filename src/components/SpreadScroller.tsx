@@ -53,11 +53,8 @@ export function SpreadScroller({ state, actions }: Props) {
     <div
       ref={containerRef}
       style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
         height: SCROLLER_H,
+        flexShrink: 0,
         zIndex: 10,
         background: 'rgba(245,240,232,0.92)',
         backdropFilter: 'blur(4px)',

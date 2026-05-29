@@ -36,7 +36,7 @@ function App() {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#F5F0E8]">
+    <div className="w-full h-full flex flex-col relative overflow-hidden bg-[#F5F0E8]">
       <NotebookBar state={state} actions={actions} />
       <SpreadView state={state} actions={actions} tbManager={state.tbManager} />
       <SpreadScroller state={state} actions={actions} />
