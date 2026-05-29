@@ -28,6 +28,7 @@ const SCROLLER_H = isTouch ? 48 : 40
 export function SpreadView({ state, actions, tbManager }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
+  const creatingRef = useRef(false)
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
   const [boxRects, setBoxRects] = useState<Map<string, DOMRect>>(new Map())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -57,6 +58,9 @@ export function SpreadView({ state, actions, tbManager }: Props) {
 
   const handleSpreadPointerDown = useCallback(
     (e: React.PointerEvent, pageIndex: 0 | 1) => {
+      // iOS fires synthetic 'mouse' pointerdown ~300ms after touch — ignore it
+      if (isTouch && e.pointerType === 'mouse') return
+
       const target = e.target as Element
       if (target.closest('[data-textbox]') || target.closest('[data-imagebox]')) return
 
@@ -69,8 +73,14 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       const y = (e.clientY - rect.top) / rect.height
 
       const createHere = async () => {
-        const tb = await actions.createTextBox(pageIndex, x, y)
-        if (tb) actions.enterEditMode(tb.id)
+        if (creatingRef.current) return
+        creatingRef.current = true
+        try {
+          const tb = await actions.createTextBox(pageIndex, x, y)
+          if (tb) actions.enterEditMode(tb.id)
+        } finally {
+          creatingRef.current = false
+        }
       }
 
       if (!isTouch) {
