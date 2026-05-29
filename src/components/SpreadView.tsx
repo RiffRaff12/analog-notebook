@@ -87,6 +87,14 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         }
       }
 
+      // If currently editing, keep the keyboard open by preventing the browser
+      // from blurring the textarea, then create a new box right where tapped.
+      if (state.editingId) {
+        e.preventDefault()
+        createHere()
+        return
+      }
+
       if (!isTouch) {
         createHere()
         return
@@ -141,7 +149,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       window.addEventListener('pointerup', handleUp)
       window.addEventListener('pointercancel', handleCancel)
     },
-    [state.selectedId, state.selectedImageId, actions],
+    [state.selectedId, state.selectedImageId, state.editingId, actions],
   )
 
   const handleContextMenu = useCallback(
@@ -265,6 +273,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
               pageHeight={pageHeight}
               isSelected={state.selectedId === box.id}
               isEditing={state.editingId === box.id}
+              anyBoxEditing={state.editingId !== null}
               actions={actions}
               onRectChange={handleRectChange}
               tbManager={tbManager}

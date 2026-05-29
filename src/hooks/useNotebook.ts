@@ -45,7 +45,7 @@ export interface NotebookActions {
   moveTextBox: (id: string, x: number, y: number, pageIndex?: 0 | 1) => Promise<void>
   selectBox: (id: string) => void
   deselectBox: () => void
-  enterEditMode: (id: string) => void
+  enterEditMode: (id: string) => Promise<void>
   exitEditMode: () => void
   createNotebook: (name: string) => Promise<void>
   renameNotebook: (id: string, name: string) => Promise<void>
@@ -338,11 +338,24 @@ export function useNotebook(): [NotebookState, NotebookActions] {
       selectionRef.current.deselect()
       refresh()
     },
-    enterEditMode: (id) => {
-      selectionRef.current.select(id)
-      selectionRef.current.enterEditMode(id)
+    enterEditMode: async (id) => {
+      const sel = selectionRef.current
+      // When switching from an editing box without blur (keyboard-keep-open path),
+      // the onBlur cleanup won't run — delete the old box here if it's empty.
+      if (sel.isEditing()) {
+        const prevId = sel.getSelected()
+        if (prevId && prevId !== id) {
+          const prevBox = await storageRef.current?.getTextBox(prevId)
+          if (prevBox && !prevBox.content.trim()) {
+            sel.deselect()
+            await tbManagerRef.current?.deleteTextBox(prevId)
+          }
+        }
+      }
+      sel.select(id)
+      sel.enterEditMode(id)
       selectedImageIdRef.current = null
-      refresh()
+      await refresh()
     },
     exitEditMode: () => {
       selectionRef.current.exitEditMode()
