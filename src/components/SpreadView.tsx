@@ -342,7 +342,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         {state.canGoPrev && (
           <div className="absolute left-0 top-0 h-full flex items-center group pointer-events-none" style={{ width: 48 }}>
             <button
-              className={`pointer-events-auto ${isTouch ? 'opacity-60' : 'opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
+              className={`${isTouch ? 'pointer-events-none opacity-60' : 'pointer-events-auto opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
               style={{ padding: 8, fontSize: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '0 4px 4px 0', backdropFilter: 'blur(2px)', lineHeight: 1 }}
               onClick={(e) => { e.stopPropagation(); actions.goToPrev() }}
               aria-label="Previous spread"
@@ -352,10 +352,11 @@ export function SpreadView({ state, actions, tbManager }: Props) {
           </div>
         )}
 
-        {/* Right chevron — always visible, creates new spread at end */}
+        {/* Right chevron — always visible, creates new spread at end.
+            On touch, pointer-events-none so taps reach the page (swipe handles navigation). */}
         <div className="absolute right-0 top-0 h-full flex items-center justify-end group pointer-events-none" style={{ width: 48 }}>
           <button
-            className={`pointer-events-auto ${isTouch ? 'opacity-60' : 'opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
+            className={`${isTouch ? 'pointer-events-none opacity-60' : 'pointer-events-auto opacity-20 group-hover:opacity-100'} transition-opacity duration-150 flex items-center justify-center text-stone-500 hover:text-stone-800`}
             style={{ padding: 8, fontSize: 48, background: 'rgba(255,255,255,0.6)', borderRadius: '4px 0 0 4px', backdropFilter: 'blur(2px)', lineHeight: 1 }}
             onClick={(e) => { e.stopPropagation(); actions.goToNext() }}
             aria-label="Next spread"
