@@ -151,13 +151,7 @@ export function TextBoxComponent({
           }}
           value={box.content}
           onChange={(e) => actions.updateContent(box.id, e.target.value)}
-          onBlur={() => {
-            if (!box.content.trim()) {
-              actions.deleteTextBox(box.id)
-            } else {
-              actions.exitEditMode()
-            }
-          }}
+          onBlur={() => actions.blurTextBox(box.id, box.content)}
         />
       ) : (
         <div

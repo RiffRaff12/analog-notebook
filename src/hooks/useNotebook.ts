@@ -47,6 +47,7 @@ export interface NotebookActions {
   deselectBox: () => void
   enterEditMode: (id: string) => Promise<void>
   exitEditMode: () => void
+  blurTextBox: (id: string, content: string) => Promise<void>
   createNotebook: (name: string) => Promise<void>
   renameNotebook: (id: string, name: string) => Promise<void>
   deleteNotebook: (id: string) => Promise<void>
@@ -360,6 +361,20 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     exitEditMode: () => {
       selectionRef.current.exitEditMode()
       refresh()
+    },
+    blurTextBox: async (id, content) => {
+      const sel = selectionRef.current
+      // If another box already took over edit mode (e.g. programmatic switch),
+      // this blur is stale — don't touch the new box's state.
+      if (!sel.isInEditMode(id)) return
+      if (!content.trim()) {
+        sel.deselect()
+        await tbManagerRef.current?.deleteTextBox(id)
+        await refresh()
+      } else {
+        sel.exitEditMode()
+        refresh()
+      }
     },
     createNotebook: async (name) => {
       const nbm = nbManagerRef.current!
