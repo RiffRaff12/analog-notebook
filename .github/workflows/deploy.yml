@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/github-actions-pages-deploy-9GF3D]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
