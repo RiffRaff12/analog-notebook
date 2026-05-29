@@ -10,6 +10,7 @@ interface Props {
   pageHeight: number
   isSelected: boolean
   isEditing: boolean
+  anyBoxEditing: boolean
   actions: NotebookActions
   onRectChange: (id: string, rect: DOMRect) => void
   tbManager: TextBoxManager
@@ -22,6 +23,7 @@ export function TextBoxComponent({
   pageHeight,
   isSelected,
   isEditing,
+  anyBoxEditing,
   actions,
   onRectChange,
   tbManager,
@@ -48,6 +50,15 @@ export function TextBoxComponent({
     (e: React.PointerEvent) => {
       e.stopPropagation()
       if (isEditing) return
+
+      // Another box is currently being edited — keep the keyboard open by
+      // preventing the browser from blurring that textarea, then immediately
+      // switch edit mode to this box (skip drag, which isn't useful mid-edit).
+      if (anyBoxEditing) {
+        e.preventDefault()
+        actions.enterEditMode(box.id)
+        return
+      }
 
       if (!spreadRect) {
         // No geometry yet — fall back to select or edit
@@ -93,7 +104,7 @@ export function TextBoxComponent({
           }
         } else {
           // tap (< 5px movement) → enter edit mode
-          actions.enterEditMode(box.id)
+          await actions.enterEditMode(box.id)
         }
         dragRef.current = null
       }
@@ -101,7 +112,7 @@ export function TextBoxComponent({
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
     },
-    [isSelected, isEditing, actions, box, spreadRect, tbManager, pageWidth, pageHeight],
+    [isSelected, isEditing, anyBoxEditing, actions, box, spreadRect, tbManager, pageWidth, pageHeight],
   )
 
   const left = box.x * pageWidth

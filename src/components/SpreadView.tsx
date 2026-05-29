@@ -65,6 +65,17 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       const x = (e.clientX - rect.left) / rect.width
       const y = (e.clientY - rect.top) / rect.height
 
+      // If currently editing, keep the keyboard open by preventing the browser
+      // from blurring the textarea, then create a new box right where tapped.
+      if (state.editingId) {
+        e.preventDefault()
+        const tb = await actions.createTextBox(pageIndex, x, y)
+        if (tb) {
+          await actions.enterEditMode(tb.id)
+        }
+        return
+      }
+
       if (state.selectedId) {
         actions.deselectBox()
         return
@@ -76,10 +87,10 @@ export function SpreadView({ state, actions, tbManager }: Props) {
 
       const tb = await actions.createTextBox(pageIndex, x, y)
       if (tb) {
-        actions.enterEditMode(tb.id)
+        await actions.enterEditMode(tb.id)
       }
     },
-    [state.selectedId, state.selectedImageId, actions],
+    [state.selectedId, state.selectedImageId, state.editingId, actions],
   )
 
   const handleContextMenu = useCallback(
@@ -200,6 +211,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
               pageHeight={pageHeight}
               isSelected={state.selectedId === box.id}
               isEditing={state.editingId === box.id}
+              anyBoxEditing={state.editingId !== null}
               actions={actions}
               onRectChange={handleRectChange}
               tbManager={tbManager}
