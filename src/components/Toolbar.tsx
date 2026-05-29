@@ -46,10 +46,10 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
             key={label}
             className={`rounded font-[Caveat] font-bold transition-colors ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'} ${
               box.fontSize === size
-                ? 'bg-stone-800 text-white'
-                : 'hover:bg-stone-100 text-stone-600'
+                ? 'bg-stone-800 text-white active:bg-stone-700'
+                : 'hover:bg-stone-100 active:bg-stone-200 text-stone-600'
             }`}
-            style={{ fontSize: size === 12 ? 11 : size === 16 ? 13 : 15, minHeight: isTouch ? 36 : undefined }}
+            style={{ fontSize: size === 12 ? 11 : size === 16 ? 13 : 15, minHeight: isTouch ? 44 : undefined }}
             onClick={() => actions.updateFontSize(box.id, size)}
           >
             {label}
@@ -60,18 +60,18 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
       <button
         className={`rounded font-[Caveat] transition-colors ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'} ${
           box.isStruck
-            ? 'bg-stone-800 text-white'
-            : 'hover:bg-stone-100 text-stone-600'
+            ? 'bg-stone-800 text-white active:bg-stone-700'
+            : 'hover:bg-stone-100 active:bg-stone-200 text-stone-600'
         }`}
-        style={{ textDecoration: 'line-through', fontSize: 13, minHeight: isTouch ? 36 : undefined }}
+        style={{ textDecoration: 'line-through', fontSize: 13, minHeight: isTouch ? 44 : undefined }}
         onClick={() => actions.toggleStrikethrough(box.id)}
         title="Strikethrough"
       >
         S
       </button>
       <button
-        className={`rounded hover:bg-red-50 text-red-500 transition-colors flex items-center justify-center ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'}`}
-        style={{ minHeight: isTouch ? 36 : undefined }}
+        className={`rounded hover:bg-red-50 active:bg-red-100 text-red-500 transition-colors flex items-center justify-center ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'}`}
+        style={{ minHeight: isTouch ? 44 : undefined }}
         onClick={() => actions.deleteTextBox(box.id)}
         title="Delete"
       >

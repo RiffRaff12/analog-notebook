@@ -365,11 +365,15 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       {contextMenu && (
         <div
           className="fixed z-50 bg-white border border-stone-200 rounded shadow-lg py-1"
-          style={{ left: contextMenu.x, top: contextMenu.y, minWidth: 140 }}
+          style={{
+            left: Math.min(contextMenu.x, window.innerWidth - 148),
+            top: Math.min(contextMenu.y, window.innerHeight - 60),
+            minWidth: 140,
+          }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full text-left px-3 text-sm hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+            className="w-full text-left px-3 text-sm hover:bg-stone-100 active:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
             style={{ minHeight: isTouch ? 44 : 32 }}
             disabled={!contextMenu.hasImage}
             onClick={handlePasteImage}

@@ -10,7 +10,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <div className="text-center">
         <p className="font-[Caveat] text-stone-500 text-2xl mb-4">No notebooks yet.</p>
         <button
-          className="font-[Caveat] text-stone-700 border border-stone-400 px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors text-xl"
+          className="font-[Caveat] text-stone-700 border border-stone-400 px-4 py-3 rounded-lg hover:bg-stone-100 active:bg-stone-200 transition-colors text-xl min-h-[44px]"
           onClick={onCreate}
         >
           Create notebook
