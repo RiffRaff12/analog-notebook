@@ -1,6 +1,8 @@
 import type { TextBox } from '../modules'
 import type { NotebookActions } from '../hooks/useNotebook'
 
+const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
 interface Props {
   box: TextBox
   actions: NotebookActions
@@ -12,8 +14,8 @@ interface Props {
 export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }: Props) {
   if (!anchorRect || !spreadRect || !containerRect) return null
 
-  const TOOLBAR_HEIGHT = 40
-  const TOOLBAR_WIDTH = 180
+  const TOOLBAR_HEIGHT = isTouch ? 52 : 40
+  const TOOLBAR_WIDTH = isTouch ? 220 : 180
   const FLIP_THRESHOLD = 48
 
   const topRelative = anchorRect.top - containerRect.top
@@ -31,7 +33,7 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
 
   return (
     <div
-      className="absolute flex items-center gap-1 px-2 py-1 bg-white border border-stone-200 rounded-lg shadow-md text-xs"
+      className={`absolute flex items-center bg-white border border-stone-200 rounded-lg shadow-md text-xs ${isTouch ? 'gap-1.5 px-3 py-2' : 'gap-1 px-2 py-1'}`}
       style={{ left, top, height: TOOLBAR_HEIGHT, zIndex: 50 }}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.preventDefault()}
@@ -42,12 +44,12 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
         return (
           <button
             key={label}
-            className={`px-1.5 py-0.5 rounded font-[Caveat] font-bold transition-colors ${
+            className={`rounded font-[Caveat] font-bold transition-colors ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'} ${
               box.fontSize === size
                 ? 'bg-stone-800 text-white'
                 : 'hover:bg-stone-100 text-stone-600'
             }`}
-            style={{ fontSize: size === 12 ? 11 : size === 16 ? 13 : 15 }}
+            style={{ fontSize: size === 12 ? 11 : size === 16 ? 13 : 15, minHeight: isTouch ? 36 : undefined }}
             onClick={() => actions.updateFontSize(box.id, size)}
           >
             {label}
@@ -56,19 +58,20 @@ export function Toolbar({ box, actions, anchorRect, spreadRect, containerRect }:
       })}
       <div className="w-px h-5 bg-stone-200 mx-0.5" />
       <button
-        className={`px-1.5 py-0.5 rounded font-[Caveat] transition-colors ${
+        className={`rounded font-[Caveat] transition-colors ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'} ${
           box.isStruck
             ? 'bg-stone-800 text-white'
             : 'hover:bg-stone-100 text-stone-600'
         }`}
-        style={{ textDecoration: 'line-through', fontSize: 13 }}
+        style={{ textDecoration: 'line-through', fontSize: 13, minHeight: isTouch ? 36 : undefined }}
         onClick={() => actions.toggleStrikethrough(box.id)}
         title="Strikethrough"
       >
         S
       </button>
       <button
-        className="px-1.5 py-0.5 rounded hover:bg-red-50 text-red-500 transition-colors flex items-center"
+        className={`rounded hover:bg-red-50 text-red-500 transition-colors flex items-center justify-center ${isTouch ? 'px-3 py-2' : 'px-1.5 py-0.5'}`}
+        style={{ minHeight: isTouch ? 36 : undefined }}
         onClick={() => actions.deleteTextBox(box.id)}
         title="Delete"
       >

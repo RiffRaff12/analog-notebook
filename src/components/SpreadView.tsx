@@ -23,11 +23,11 @@ interface ContextMenuState {
 }
 
 const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+const SCROLLER_H = isTouch ? 48 : 40
 
 export function SpreadView({ state, actions, tbManager }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const spreadRef = useRef<HTMLDivElement>(null)
-  const SCROLLER_H = 40
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight - SCROLLER_H })
   const [boxRects, setBoxRects] = useState<Map<string, DOMRect>>(new Map())
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
@@ -56,28 +56,76 @@ export function SpreadView({ state, actions, tbManager }: Props) {
   const pageHeight = spreadHeight
 
   const handleSpreadPointerDown = useCallback(
-    async (e: React.PointerEvent, pageIndex: 0 | 1) => {
+    (e: React.PointerEvent, pageIndex: 0 | 1) => {
       const target = e.target as Element
       if (target.closest('[data-textbox]') || target.closest('[data-imagebox]')) return
 
-      const pageEl = (e.currentTarget as HTMLElement)
+      if (state.selectedId) { actions.deselectBox(); return }
+      if (state.selectedImageId) { actions.deselectImageBox(); return }
+
+      const pageEl = e.currentTarget as HTMLElement
       const rect = pageEl.getBoundingClientRect()
       const x = (e.clientX - rect.left) / rect.width
       const y = (e.clientY - rect.top) / rect.height
 
-      if (state.selectedId) {
-        actions.deselectBox()
-        return
+      const createHere = async () => {
+        const tb = await actions.createTextBox(pageIndex, x, y)
+        if (tb) actions.enterEditMode(tb.id)
       }
-      if (state.selectedImageId) {
-        actions.deselectImageBox()
+
+      if (!isTouch) {
+        createHere()
         return
       }
 
-      const tb = await actions.createTextBox(pageIndex, x, y)
-      if (tb) {
-        actions.enterEditMode(tb.id)
+      // Touch: distinguish tap / swipe / long-press
+      const startX = e.clientX
+      const startY = e.clientY
+      let gestureType: 'pending' | 'swipe' | 'longpress' | 'cancelled' = 'pending'
+
+      const longPressTimer = setTimeout(() => {
+        if (gestureType !== 'pending') return
+        gestureType = 'longpress'
+        const showMenu = (hasImage: boolean) =>
+          setContextMenu({ x: startX, y: startY, pageIndex, pageX: x, pageY: y, hasImage })
+        navigator.clipboard.read()
+          .then(items => showMenu(items.some(item => item.types.some(t => t.startsWith('image/')))))
+          .catch(() => showMenu(false))
+      }, 600)
+
+      const cleanup = () => {
+        window.removeEventListener('pointermove', handleMove)
+        window.removeEventListener('pointerup', handleUp)
+        window.removeEventListener('pointercancel', handleCancel)
+        clearTimeout(longPressTimer)
       }
+
+      const handleMove = (me: PointerEvent) => {
+        if (gestureType !== 'pending') return
+        const dx = me.clientX - startX
+        const dy = me.clientY - startY
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+          clearTimeout(longPressTimer)
+          if (Math.abs(dx) > 50 && Math.abs(dy) < 60) {
+            gestureType = 'swipe'
+            if (dx < 0) actions.goToNext()
+            else actions.goToPrev()
+          } else {
+            gestureType = 'cancelled'
+          }
+        }
+      }
+
+      const handleUp = () => {
+        cleanup()
+        if (gestureType === 'pending') createHere()
+      }
+
+      const handleCancel = () => cleanup()
+
+      window.addEventListener('pointermove', handleMove)
+      window.addEventListener('pointerup', handleUp)
+      window.addEventListener('pointercancel', handleCancel)
     },
     [state.selectedId, state.selectedImageId, actions],
   )
@@ -164,8 +212,11 @@ export function SpreadView({ state, actions, tbManager }: Props) {
           backgroundSize: `${5 * scale}px ${5 * scale}px`,
           backgroundPosition: `${2.5 * scale}px ${2.5 * scale}px`,
           backgroundColor: '#FAFAF7',
-          cursor: 'text',
+          cursor: isTouch ? 'default' : 'text',
           borderLeft: pageIndex === 1 ? '1px solid #e0d8cc' : undefined,
+          touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
         }}
         onPointerDown={(e) => handleSpreadPointerDown(e, pageIndex)}
         onContextMenu={(e) => handleContextMenu(e, pageIndex)}
@@ -294,7 +345,8 @@ export function SpreadView({ state, actions, tbManager }: Props) {
           onPointerDown={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full text-left px-3 text-sm hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+            style={{ minHeight: isTouch ? 44 : 32 }}
             disabled={!contextMenu.hasImage}
             onClick={handlePasteImage}
           >

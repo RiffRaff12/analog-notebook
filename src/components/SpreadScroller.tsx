@@ -8,6 +8,10 @@ interface Props {
   actions: NotebookActions
 }
 
+const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+const SCROLLER_H = isTouch ? 48 : 40
+const PILL_H = isTouch ? 36 : 28
+const PILL_RADIUS = PILL_H / 2
 const ITEM_W = 64
 
 export function SpreadScroller({ state, actions }: Props) {
@@ -53,7 +57,7 @@ export function SpreadScroller({ state, actions }: Props) {
         bottom: 0,
         left: 0,
         right: 0,
-        height: 40,
+        height: SCROLLER_H,
         zIndex: 10,
         background: 'rgba(245,240,232,0.92)',
         backdropFilter: 'blur(4px)',
@@ -87,8 +91,8 @@ export function SpreadScroller({ state, actions }: Props) {
               style={{
                 width: ITEM_W,
                 flexShrink: 0,
-                height: 28,
-                borderRadius: 14,
+                height: PILL_H,
+                borderRadius: PILL_RADIUS,
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: 11,

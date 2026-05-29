@@ -124,6 +124,7 @@ export function TextBoxComponent({
         outlineOffset: 2,
         borderRadius: 2,
         zIndex: isSelected ? 50 : undefined,
+        touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
     >

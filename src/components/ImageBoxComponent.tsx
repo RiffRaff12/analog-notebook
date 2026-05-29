@@ -3,6 +3,10 @@ import type { ImageBox } from '../modules'
 import { DragModule } from '../modules'
 import type { NotebookActions } from '../hooks/useNotebook'
 
+const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+const HANDLE_SIZE = isTouch ? 20 : 8
+const HANDLE_OFF = HANDLE_SIZE / 2
+
 interface Props {
   box: ImageBox
   pageWidth: number
@@ -150,14 +154,14 @@ export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, acti
   )
 
   const handles: { dir: HandleDir; style: React.CSSProperties }[] = [
-    { dir: 'nw', style: { top: -4, left: -4 } },
-    { dir: 'n',  style: { top: -4, left: '50%', transform: 'translateX(-50%)' } },
-    { dir: 'ne', style: { top: -4, right: -4 } },
-    { dir: 'e',  style: { top: '50%', right: -4, transform: 'translateY(-50%)' } },
-    { dir: 'se', style: { bottom: -4, right: -4 } },
-    { dir: 's',  style: { bottom: -4, left: '50%', transform: 'translateX(-50%)' } },
-    { dir: 'sw', style: { bottom: -4, left: -4 } },
-    { dir: 'w',  style: { top: '50%', left: -4, transform: 'translateY(-50%)' } },
+    { dir: 'nw', style: { top: -HANDLE_OFF, left: -HANDLE_OFF } },
+    { dir: 'n',  style: { top: -HANDLE_OFF, left: '50%', transform: 'translateX(-50%)' } },
+    { dir: 'ne', style: { top: -HANDLE_OFF, right: -HANDLE_OFF } },
+    { dir: 'e',  style: { top: '50%', right: -HANDLE_OFF, transform: 'translateY(-50%)' } },
+    { dir: 'se', style: { bottom: -HANDLE_OFF, right: -HANDLE_OFF } },
+    { dir: 's',  style: { bottom: -HANDLE_OFF, left: '50%', transform: 'translateX(-50%)' } },
+    { dir: 'sw', style: { bottom: -HANDLE_OFF, left: -HANDLE_OFF } },
+    { dir: 'w',  style: { top: '50%', left: -HANDLE_OFF, transform: 'translateY(-50%)' } },
   ]
 
   return (
@@ -172,6 +176,7 @@ export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, acti
         cursor: isSelected ? 'move' : 'pointer',
         outline: isSelected ? '1.5px solid #a8a29e' : 'none',
         outlineOffset: 2,
+        touchAction: 'none',
       }}
       onPointerDown={handlePointerDown}
     >
@@ -190,9 +195,10 @@ export function ImageBoxComponent({ box, pageWidth, pageHeight, isSelected, acti
           key={dir}
           className="absolute bg-white border border-stone-400 rounded-sm"
           style={{
-            width: 8,
-            height: 8,
+            width: HANDLE_SIZE,
+            height: HANDLE_SIZE,
             cursor: HANDLE_CURSORS[dir],
+            touchAction: 'none',
             ...style,
           }}
           onPointerDown={(e) => handleResizePointerDown(e, dir)}
