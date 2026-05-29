@@ -90,6 +90,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       // If currently editing, keep the keyboard open by preventing the browser
       // from blurring the textarea, then create a new box right where tapped.
       if (state.editingId) {
+        console.log('[spread tap] in edit mode, creating box on page', pageIndex)
         e.preventDefault()
         createHere()
         return

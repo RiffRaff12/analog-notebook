@@ -341,6 +341,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     },
     enterEditMode: async (id) => {
       const sel = selectionRef.current
+      console.log('[enterEditMode]', id, 'prevEditing:', sel.isEditing() ? sel.getSelected() : null)
       // When switching from an editing box without blur (keyboard-keep-open path),
       // the onBlur cleanup won't run — delete the old box here if it's empty.
       if (sel.isEditing()) {
@@ -364,6 +365,7 @@ export function useNotebook(): [NotebookState, NotebookActions] {
     },
     blurTextBox: async (id, content) => {
       const sel = selectionRef.current
+      console.log('[blur]', id, 'isInEditMode:', sel.isInEditMode(id), 'editingId:', sel.isEditing() ? sel.getSelected() : null)
       // If another box already took over edit mode (e.g. programmatic switch),
       // this blur is stale — don't touch the new box's state.
       if (!sel.isInEditMode(id)) return
