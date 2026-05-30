@@ -109,6 +109,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       }
 
       // Touch: distinguish tap / swipe / long-press
+      const gesturePointerId = e.pointerId
       const startX = e.clientX
       const startY = e.clientY
       let gestureType: 'pending' | 'swipe' | 'longpress' | 'cancelled' = 'pending'
@@ -131,6 +132,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
       }
 
       const handleMove = (me: PointerEvent) => {
+        if (me.pointerId !== gesturePointerId) return  // Ignore other fingers / palm
         if (gestureType !== 'pending') return
         const dx = me.clientX - startX
         const dy = me.clientY - startY
@@ -146,7 +148,8 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         }
       }
 
-      const handleUp = () => {
+      const handleUp = (me: PointerEvent) => {
+        if (me.pointerId !== gesturePointerId) return  // Ignore other fingers / palm
         cleanup()
         if (gestureType === 'pending') {
           // Focus the hidden relay input synchronously here — we're still inside
@@ -159,7 +162,7 @@ export function SpreadView({ state, actions, tbManager }: Props) {
         }
       }
 
-      const handleCancel = () => cleanup()
+      const handleCancel = (me: PointerEvent) => { if (me.pointerId === gesturePointerId) cleanup() }
 
       window.addEventListener('pointermove', handleMove)
       window.addEventListener('pointerup', handleUp)
